@@ -1,0 +1,218 @@
+/* weather.css — Styles for weather animation bar and legend */
+
+.weather-bar {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    max-width: 600px;
+    background: rgba(20, 28, 45, 0.95);
+    border: 1px solid rgba(58, 74, 106, 0.8);
+    border-radius: 8px;
+    padding: 10px 16px 12px;
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #ccc;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.weather-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.weather-bar-source {
+    color: #8a9ab5;
+    font-size: 11px;
+}
+
+.weather-bar-timestamp {
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.weather-bar-slider-row {
+    margin: 4px 0;
+}
+
+.weather-bar-slider {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #2a3a5a;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.weather-bar-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #4a90d9;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(74, 144, 217, 0.5);
+}
+
+.weather-bar-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #4a90d9;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(74, 144, 217, 0.5);
+}
+
+.weather-bar-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.weather-bar-time-start {
+    color: #8a9ab5;
+    font-size: 10px;
+    min-width: 40px;
+}
+
+.weather-bar-playback {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weather-bar-btn {
+    background: none;
+    border: none;
+    color: #8a9ab5;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    line-height: 1;
+}
+
+.weather-bar-btn:hover {
+    color: #ccc;
+}
+
+.weather-bar-btn-small {
+    font-size: 12px;
+}
+
+.weather-bar-play {
+    width: 32px;
+    height: 32px;
+    background: #4a90d9;
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 8px rgba(74, 144, 217, 0.3);
+    padding-left: 2px;
+}
+
+.weather-bar-play:hover {
+    background: #5aa0e9;
+}
+
+.weather-bar-play.playing {
+    background: #e07030;
+    box-shadow: 0 0 8px rgba(224, 112, 48, 0.3);
+    padding-left: 0;
+}
+
+.weather-bar-speed {
+    display: flex;
+    gap: 4px;
+}
+
+.weather-bar-speed-btn {
+    background: none;
+    border: 1px solid #3a4a6a;
+    border-radius: 3px;
+    color: #8a9ab5;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+.weather-bar-speed-btn:hover {
+    border-color: #5a7aaa;
+    color: #ccc;
+}
+
+.weather-bar-speed-btn.active {
+    border-color: #4a90d9;
+    color: #fff;
+    background: rgba(74, 144, 217, 0.2);
+}
+
+.weather-bar-divider {
+    border-top: 1px solid #3a4a6a;
+    margin: 8px 0 6px;
+}
+
+.weather-bar-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weather-bar-legend-title {
+    color: #8a9ab5;
+    font-size: 10px;
+    white-space: nowrap;
+    min-width: 28px;
+}
+
+.weather-bar-legend-wrap {
+    flex: 1;
+}
+
+.weather-bar-legend-bar {
+    height: 10px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%);
+}
+
+.weather-bar-legend-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+    font-size: 9px;
+    color: #8a9ab5;
+}
+
+@media (max-width: 600px) {
+    .weather-bar {
+        width: 95%;
+        padding: 8px 10px 10px;
+        bottom: 36px;
+    }
+
+    .weather-bar-play {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .weather-bar-playback {
+        gap: 6px;
+    }
+}
