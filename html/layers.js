@@ -632,6 +632,7 @@ function createBaseLayers() {
     const topRight = ol.proj.fromLonLat([-51.0,69.0]);
     const naExtent = [bottomLeft[0], bottomLeft[1], topRight[0], topRight[1]];
 
+    /* REPLACED BY weather system
     if (true) {
 
         let nexrad = new ol.layer.Tile({
@@ -663,6 +664,7 @@ function createBaseLayers() {
 
         us.push(nexrad);
     }
+    */ /* REPLACED BY weather system
     if (true) {
 
         let noaaSatSource = new ol.source.ImageWMS({
@@ -697,6 +699,7 @@ function createBaseLayers() {
 
         us.push(noaaSat);
     }
+    */ /* REPLACED BY weather system
     if (true) {
         let noaaRadarSource = new ol.source.ImageWMS({
             attributions: ['NOAA'],
@@ -728,7 +731,7 @@ function createBaseLayers() {
 
         us.push(noaaRadar);
     }
-
+    */ /* REPLACED BY weather system
     if (enableDWD) {
         const bottomLeft = ol.proj.fromLonLat([1.9,46.2]);
         const topRight = ol.proj.fromLonLat([16.0,55.0]);
@@ -778,7 +781,7 @@ function createBaseLayers() {
 
         europe.push(dwd);
     }
-
+    */ /* REPLACED BY weather system
     if (true) {
         g.getRainviewerMaps = async function() {
             const response = await fetch("https://api.rainviewer.com/public/weather-maps.json", {credentials: "omit",});
@@ -816,6 +819,7 @@ function createBaseLayers() {
 
         world.push(rainviewerRadar);
     }
+    */
 
     let createGeoJsonLayer = function (title, name, url, fill, stroke, showLabel = true) {
         return new ol.layer.Vector({
