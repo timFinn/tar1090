@@ -2553,6 +2553,11 @@ function ol_map_init() {
     webglInit();
     console.timeEnd('webglInit');
 
+    // Initialize weather overlay system
+    if (typeof weatherInit === 'function') {
+        weatherInit(OLMap);
+    }
+
 
     let foundType = false;
     ol.control.LayerSwitcher.forEachRecursive(layers_group, function(lyr) {
