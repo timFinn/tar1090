@@ -1,122 +1,130 @@
 // weather-us.js — US weather provider (CONUS)
-// Sources: MRMS (IEM WMS), NEXRAD (IEM WMS), GOES IR (NOAA NowCOAST)
+// Animation: RainViewer (real historical frames)
+// Static hi-res: MRMS (IEM), NEXRAD (IEM), GOES IR (NOAA)
 
 'use strict';
 
 (function() {
-    // IEM WMS endpoints support TIME parameter for historical frames
-    var IEM_NEXRAD_WMS = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi';
-    var IEM_MRMS_WMS = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/us/mrms_nn.cgi';
+    var RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+    var IEM_TILE_BASE = 'https://mesonet{1-3}.agron.iastate.edu/cache/tile.py/1.0.0';
+    var animRefreshTimer = null;
 
-    var mrmsRefreshTimer = null;
-    var nexradRefreshTimer = null;
+    // ---- Animated radar via RainViewer (real historical frames) ----
+    function fetchAnimatedFrames() {
+        fetch(RAINVIEWER_API)
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                var past = data.radar ? data.radar.past : [];
+                if (!past || past.length === 0) return;
 
-    // Build WMS TIME frames for the last 4 hours at 5-minute intervals
-    function buildWmsFrames(wmsUrl, layerName, opacity, label, maxCount) {
-        var frames = [];
-        var now = new Date();
-        var interval = 300000; // 5 min in ms
-        var count = maxCount || 48;
+                var host = data.host || 'https://tilecache.rainviewer.com';
+                var frames = [];
 
-        for (var i = count - 1; i >= 0; i--) {
-            var t = new Date(now.getTime() - (i * interval));
-            // Round to nearest 5 minutes
-            t.setMinutes(Math.floor(t.getMinutes() / 5) * 5, 0, 0);
-            var isoTime = t.toISOString();
+                for (var i = 0; i < past.length; i++) {
+                    frames.push({
+                        timestamp: past[i].time,
+                        url: host + past[i].path + '/256/{z}/{x}/{y}/2/1_1.png',
+                        type: 'xyz',
+                        maxZoom: 7,
+                        opacity: (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.35,
+                        attribution: 'Radar: <a href="https://www.rainviewer.com/">RainViewer</a>',
+                    });
+                }
 
-            frames.push({
-                timestamp: Math.floor(t.getTime() / 1000),
-                time: isoTime,
-                url: wmsUrl,
-                type: 'wms',
-                params: {
-                    LAYERS: layerName,
-                    FORMAT: 'image/png',
-                    TRANSPARENT: true,
-                },
-                opacity: opacity,
-                attribution: '© <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>',
+                var mins = Math.round(past.length * 10);
+                var label = 'US Radar — ' + (mins >= 120 ? Math.round(mins/60) + 'h' : mins + 'm') + ' history';
+
+                weatherSetFrames(frames, {
+                    label: label,
+                    legend: {
+                        label: 'dBZ',
+                        gradient: 'linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%)',
+                        stops: ['5', '15', '25', '35', '45', '55', '65+'],
+                    },
+                });
+            })
+            .catch(function(err) {
+                console.warn('RainViewer API error:', err.message);
             });
-        }
-
-        return frames;
     }
 
-    // ---- MRMS Radar ----
-    function fetchMrmsFrames() {
-        var opacity = (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.35;
-        var frames = buildWmsFrames(IEM_MRMS_WMS, 'mrms_nn', opacity, 'MRMS', 48);
-
-        weatherSetFrames(frames, {
-            label: 'MRMS Radar — 4h history',
-            legend: {
-                label: 'dBZ',
-                gradient: 'linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%)',
-                stops: ['5', '15', '25', '35', '45', '55', '65+'],
-            },
-        });
-    }
-
-    function createMrmsLayer() {
+    function createAnimatedRadarLayer() {
         var layer = new ol.layer.Tile({
-            name: 'mrms_radar',
-            title: 'MRMS Radar (high-res)',
+            name: 'us_radar_anim',
+            title: 'Radar Animation',
             type: 'overlay',
             visible: false,
-            zIndex: 52,
-            source: new ol.source.TileWMS({
-                url: IEM_MRMS_WMS,
-                params: { LAYERS: 'mrms_nn', FORMAT: 'image/png', TRANSPARENT: true },
-                crossOrigin: 'anonymous',
-            }),
-            opacity: (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.35,
+            zIndex: 50,
+            source: new ol.source.XYZ({ url: '' }),
         });
         layer.set('weatherType', 'radar');
         layer.set('weatherLoadFrames', function() {
-            fetchMrmsFrames();
-            if (!mrmsRefreshTimer) {
-                mrmsRefreshTimer = setInterval(fetchMrmsFrames, 120000);
+            fetchAnimatedFrames();
+            if (!animRefreshTimer) {
+                animRefreshTimer = setInterval(fetchAnimatedFrames, 120000);
             }
         });
         return layer;
     }
 
-    // ---- NEXRAD ----
-    function fetchNexradFrames() {
-        var opacity = (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.35;
-        var frames = buildWmsFrames(IEM_NEXRAD_WMS, 'nexrad-n0q-900913', opacity, 'NEXRAD', 48);
-
-        weatherSetFrames(frames, {
-            label: 'NEXRAD Radar — 4h history',
-            legend: {
-                label: 'dBZ',
-                gradient: 'linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%)',
-                stops: ['5', '15', '25', '35', '45', '55', '65+'],
-            },
+    // ---- Static hi-res MRMS (latest frame only) ----
+    function createMrmsLayer() {
+        var source = new ol.source.XYZ({
+            url: IEM_TILE_BASE + '/q2-n1p-900913/{z}/{x}/{y}.png?_=' + Date.now(),
+            attributions: '© <a href="https://mesonet.agron.iastate.edu/">IEM</a> MRMS',
+            maxZoom: 12,
+            crossOrigin: 'anonymous',
         });
-    }
 
-    function createNexradLayer() {
         var layer = new ol.layer.Tile({
-            name: 'nexrad',
-            title: 'NEXRAD Radar',
+            name: 'mrms_static',
+            title: 'MRMS Radar (hi-res, latest)',
             type: 'overlay',
             visible: false,
-            zIndex: 51,
-            source: new ol.source.TileWMS({
-                url: IEM_NEXRAD_WMS,
-                params: { LAYERS: 'nexrad-n0q-900913', FORMAT: 'image/png', TRANSPARENT: true },
-                crossOrigin: 'anonymous',
-            }),
-            opacity: (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.35,
+            zIndex: 53,
+            source: source,
+            opacity: (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.4,
         });
-        layer.set('weatherType', 'radar');
-        layer.set('weatherLoadFrames', function() {
-            fetchNexradFrames();
-            if (!nexradRefreshTimer) {
-                nexradRefreshTimer = setInterval(fetchNexradFrames, 120000);
+        layer.set('weatherType', 'radar-static');
+
+        // Refresh every 2 minutes
+        setInterval(function() {
+            if (layer.getVisible()) {
+                source.setUrl(IEM_TILE_BASE + '/q2-n1p-900913/{z}/{x}/{y}.png?_=' + Date.now());
+                source.refresh();
             }
+        }, 120000);
+
+        return layer;
+    }
+
+    // ---- Static NEXRAD (latest frame only) ----
+    function createNexradLayer() {
+        var source = new ol.source.XYZ({
+            url: IEM_TILE_BASE + '/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + Date.now(),
+            attributions: '© <a href="https://mesonet.agron.iastate.edu/">IEM</a> NEXRAD',
+            maxZoom: 8,
+            crossOrigin: 'anonymous',
         });
+
+        var layer = new ol.layer.Tile({
+            name: 'nexrad_static',
+            title: 'NEXRAD Radar (latest)',
+            type: 'overlay',
+            visible: false,
+            zIndex: 52,
+            source: source,
+            opacity: (typeof nexradOpacity !== 'undefined') ? nexradOpacity : 0.4,
+        });
+        layer.set('weatherType', 'radar-static');
+
+        setInterval(function() {
+            if (layer.getVisible()) {
+                source.setUrl(IEM_TILE_BASE + '/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + Date.now());
+                source.refresh();
+            }
+        }, 120000);
+
         return layer;
     }
 
@@ -144,7 +152,6 @@
         });
         layer.set('weatherType', 'satellite');
 
-        // Auto-refresh every 15 minutes
         setInterval(function() {
             if (layer.getVisible()) {
                 source.updateParams({ _t: Date.now() });
@@ -156,9 +163,10 @@
 
     weatherRegisterProvider({
         region: 'us',
-        name: 'US (MRMS/NEXRAD/GOES)',
+        name: 'US (Radar/MRMS/NEXRAD/GOES)',
         getLayers: function() {
             return [
+                createAnimatedRadarLayer(),
                 createMrmsLayer(),
                 createNexradLayer(),
                 createGoesLayer(),
