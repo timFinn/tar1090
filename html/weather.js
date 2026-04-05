@@ -146,110 +146,178 @@ function weatherSkipToEnd() {
     weatherShowFrame(weather_animIndex);
 }
 
+// ---- Frame loading ----
+// Called by the active provider when frames are fetched.
+// frames: array of { timestamp (unix seconds), url, time (ISO string for WMS), type ('xyz'|'wms') }
+var weather_bufferingComplete = false;
+var weather_sourceInfo = null;
+
+function weatherSetFrames(frames, sourceInfo) {
+    weatherStopAnimation();
+
+    // Clean up old frame layers
+    for (var i = 0; i < weather_animFrames.length; i++) {
+        if (weather_animFrames[i].layer && weather_map && weather_animFrames[i].ownLayer) {
+            weather_map.removeLayer(weather_animFrames[i].layer);
+        }
+    }
+    weather_animFrames = [];
+    weather_animIndex = 0;
+    weather_bufferingComplete = false;
+    weather_sourceInfo = sourceInfo;
+
+    if (!frames || frames.length === 0) return;
+
+    // Limit to 48 frames max
+    if (frames.length > 48) {
+        frames = frames.slice(frames.length - 48);
+    }
+
+    if (frames[0].type === 'wms') {
+        weatherSetWmsFrames(frames, sourceInfo);
+    } else {
+        weatherSetXyzFrames(frames, sourceInfo);
+    }
+}
+
+function weatherSetWmsFrames(frames, sourceInfo) {
+    // WMS animation: single layer, swap TIME parameter per frame
+    // This is efficient — no per-frame tile fetching needed, the WMS server
+    // returns the correct historical image for each TIME value
+    var f0 = frames[0];
+    var wmsSource = new ol.source.TileWMS({
+        url: f0.url,
+        params: Object.assign({ TIME: f0.time }, f0.params || {}),
+        attributions: f0.attribution || '',
+        crossOrigin: 'anonymous',
+        transition: 0, // no fade transition between frames
+    });
+    var layer = new ol.layer.Tile({
+        source: wmsSource,
+        opacity: f0.opacity || 0.35,
+        visible: true,
+        zIndex: 50,
+    });
+    weather_map.addLayer(layer);
+
+    for (var i = 0; i < frames.length; i++) {
+        weather_animFrames.push({
+            timestamp: frames[i].timestamp,
+            time: frames[i].time,
+            layer: layer,
+            wmsSource: wmsSource,
+            ownLayer: (i === 0), // only first frame "owns" the layer for cleanup
+        });
+    }
+
+    // Show the most recent frame
+    weather_animIndex = weather_animFrames.length - 1;
+    wmsSource.updateParams({ TIME: frames[weather_animIndex].time });
+    weather_bufferingComplete = true;
+
+    weatherUiSetSourceLabel(sourceInfo.label || 'Weather Radar');
+    weatherUiSetLegend(sourceInfo.legend || null);
+    weatherUiUpdateSlider(weather_animIndex, weather_animFrames.length);
+    weatherUiUpdateTimestamp(frames[weather_animIndex].timestamp);
+    weatherUiShow();
+    weatherStartAnimation();
+}
+
+function weatherSetXyzFrames(frames, sourceInfo) {
+    // XYZ animation: one layer per frame, pre-fetch tiles before playing
+    var loadedCount = 0;
+    var totalFrames = frames.length;
+
+    weatherUiSetSourceLabel('Loading radar... 0/' + totalFrames);
+    weatherUiSetLegend(sourceInfo.legend || null);
+    weatherUiShow();
+
+    for (var i = 0; i < frames.length; i++) {
+        var f = frames[i];
+        var source = new ol.source.XYZ({
+            url: f.url,
+            attributions: f.attribution || '',
+            maxZoom: f.maxZoom || 12,
+            crossOrigin: 'anonymous',
+            transition: 0,
+        });
+        var layer = new ol.layer.Tile({
+            source: source,
+            opacity: f.opacity || 0.35,
+            visible: false,
+            zIndex: 50,
+        });
+        weather_map.addLayer(layer);
+
+        weather_animFrames.push({
+            timestamp: f.timestamp,
+            time: null,
+            layer: layer,
+            wmsSource: null,
+            ownLayer: true,
+        });
+
+        // Track tile loading for buffering indicator
+        (function(src, idx) {
+            src.on('tileloadend', function() {
+                if (!weather_bufferingComplete && idx === totalFrames - 1) {
+                    // Last frame's first tile loaded — good enough to start
+                    onBufferingDone();
+                }
+            });
+            src.on('tileloaderror', function() {
+                // Count errors as "loaded" to avoid blocking forever
+                if (!weather_bufferingComplete && idx === totalFrames - 1) {
+                    onBufferingDone();
+                }
+            });
+        })(source, i);
+    }
+
+    function onBufferingDone() {
+        if (weather_bufferingComplete) return;
+        weather_bufferingComplete = true;
+        weather_animIndex = weather_animFrames.length - 1;
+        weatherShowFrame(weather_animIndex);
+        weatherUiSetSourceLabel(sourceInfo.label || 'Weather Radar');
+        weatherUiUpdateSlider(weather_animIndex, weather_animFrames.length);
+        weatherUiUpdateTimestamp(weather_animFrames[weather_animIndex].timestamp);
+        weatherStartAnimation();
+    }
+
+    // Fallback: start playing after 5 seconds regardless
+    setTimeout(function() {
+        if (!weather_bufferingComplete) {
+            onBufferingDone();
+        }
+    }, 5000);
+
+    // Make the latest frame visible immediately so there's something to see
+    weather_animIndex = weather_animFrames.length - 1;
+    weather_animFrames[weather_animIndex].layer.setVisible(true);
+    weatherUiUpdateTimestamp(weather_animFrames[weather_animIndex].timestamp);
+}
+
 function weatherShowFrame(index) {
     if (index < 0 || index >= weather_animFrames.length) return;
     var frame = weather_animFrames[index];
 
-    // Hide all frame layers, show the active one
-    for (var i = 0; i < weather_animFrames.length; i++) {
-        if (weather_animFrames[i].layer) {
-            weather_animFrames[i].layer.setVisible(i === index);
-        }
-    }
-
-    // For WMS sources, update TIME parameter instead of swapping layers
     if (frame.wmsSource && frame.time) {
+        // WMS: just update the TIME parameter on the shared source
         frame.wmsSource.updateParams({ TIME: frame.time });
+    } else {
+        // XYZ: hide all frame layers, show the active one
+        for (var i = 0; i < weather_animFrames.length; i++) {
+            if (weather_animFrames[i].layer && weather_animFrames[i].ownLayer) {
+                weather_animFrames[i].layer.setVisible(i === index);
+            }
+        }
     }
 
     weatherUiUpdateSlider(index, weather_animFrames.length);
     weatherUiUpdateTimestamp(frame.timestamp);
 }
 
-// ---- Frame loading ----
-// Called by the active provider when frames are fetched.
-// frames: array of { timestamp (unix seconds), url (tile URL template), time (ISO string, for WMS) }
-function weatherSetFrames(frames, sourceInfo) {
-    // Clean up old frame layers
-    for (var i = 0; i < weather_animFrames.length; i++) {
-        if (weather_animFrames[i].layer && weather_map) {
-            weather_map.removeLayer(weather_animFrames[i].layer);
-        }
-    }
-    weather_animFrames = [];
-    weather_animIndex = 0;
-
-    if (!frames || frames.length === 0) return;
-
-    // Limit to 24 frames max
-    if (frames.length > 48) {
-        frames = frames.slice(frames.length - 48);
-    }
-
-    for (var i = 0; i < frames.length; i++) {
-        var f = frames[i];
-        var layer = null;
-
-        if (f.type === 'xyz') {
-            layer = new ol.layer.Tile({
-                source: new ol.source.XYZ({
-                    url: f.url,
-                    attributions: f.attribution || '',
-                    maxZoom: f.maxZoom || 12,
-                }),
-                opacity: f.opacity || 0.35,
-                visible: false,
-                zIndex: 50,
-            });
-        } else if (f.type === 'wms') {
-            // WMS layers share a single source; we just update TIME
-            // The first frame creates the layer; subsequent frames reuse it
-            if (i === 0) {
-                var wmsSource = new ol.source.TileWMS({
-                    url: f.url,
-                    params: Object.assign({ TIME: f.time }, f.params || {}),
-                    attributions: f.attribution || '',
-                });
-                layer = new ol.layer.Tile({
-                    source: wmsSource,
-                    opacity: f.opacity || 0.35,
-                    visible: false,
-                    zIndex: 50,
-                });
-                f.wmsSource = wmsSource;
-            } else {
-                // Reuse the first frame's layer and source
-                layer = weather_animFrames[0].layer;
-                f.layer = layer;
-                f.wmsSource = weather_animFrames[0].wmsSource;
-            }
-        }
-
-        if (layer && (f.type === 'xyz' || i === 0)) {
-            weather_map.addLayer(layer);
-        }
-
-        weather_animFrames.push({
-            timestamp: f.timestamp,
-            time: f.time || null,
-            layer: layer || (weather_animFrames.length > 0 ? weather_animFrames[0].layer : null),
-            wmsSource: f.wmsSource || null,
-            url: f.url,
-        });
-    }
-
-    // Show the most recent frame
-    weather_animIndex = weather_animFrames.length - 1;
-    weatherShowFrame(weather_animIndex);
-
-    // Update UI
-    weatherUiSetSourceLabel(sourceInfo.label || 'Weather Radar');
-    weatherUiSetLegend(sourceInfo.legend || null);
-    weatherUiShow();
-
-    // Auto-play animation when frames load
-    weatherStartAnimation();
-}
 
 // ---- Blitzortung lightning (global) ----
 var weather_lightningSource = null;
