@@ -182,8 +182,8 @@ function weatherSetFrames(frames, sourceInfo) {
     if (!frames || frames.length === 0) return;
 
     // Limit to 24 frames max
-    if (frames.length > 24) {
-        frames = frames.slice(frames.length - 24);
+    if (frames.length > 48) {
+        frames = frames.slice(frames.length - 48);
     }
 
     for (var i = 0; i < frames.length; i++) {

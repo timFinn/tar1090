@@ -51,7 +51,7 @@ function weatherUiCreate() {
     slider.type = 'range';
     slider.className = 'weather-bar-slider';
     slider.min = '0';
-    slider.max = '23';
+    slider.max = '47';
     slider.value = '23';
     slider.addEventListener('input', function() {
         weatherStopAnimation();
@@ -101,7 +101,7 @@ function weatherUiCreate() {
     var speedRow = document.createElement('div');
     speedRow.className = 'weather-bar-speed';
 
-    var speeds = [1, 2, 4];
+    var speeds = [1, 2, 4, 8];
     for (var i = 0; i < speeds.length; i++) {
         (function(spd) {
             var btn = document.createElement('button');

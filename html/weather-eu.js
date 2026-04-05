@@ -15,7 +15,7 @@
         var frames = [];
         var now = new Date();
         var interval = 300000; // 5 min in ms
-        var count = 24;
+        var count = 48; // 4 hours
 
         for (var i = count - 1; i >= 0; i--) {
             var t = new Date(now.getTime() - (i * interval));
@@ -38,7 +38,7 @@
         }
 
         weatherSetFrames(frames, {
-            label: 'DWD RADOLAN — 2h history',
+            label: 'DWD RADOLAN — 4h history',
             legend: {
                 label: 'dBZ',
                 gradient: 'linear-gradient(90deg, #b3b3ff 0%, #6666ff 15%, #0000ff 25%, #00cc00 38%, #ffff00 50%, #ffcc00 62%, #ff6600 72%, #ff0000 82%, #cc0066 92%, #800080 100%)',

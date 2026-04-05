@@ -14,7 +14,7 @@
         var frames = [];
         var now = Math.floor(Date.now() / 1000);
         var interval = 300; // 5 minutes
-        var count = 24; // 2 hours
+        var count = 48; // 4 hours
 
         for (var i = count - 1; i >= 0; i--) {
             var ts = now - (i * interval);
@@ -30,7 +30,7 @@
         }
 
         weatherSetFrames(frames, {
-            label: 'MRMS Radar — 2h history',
+            label: 'MRMS Radar — 4h history',
             legend: {
                 label: 'dBZ',
                 gradient: 'linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%)',
@@ -79,7 +79,7 @@
         }
 
         weatherSetFrames(frames, {
-            label: 'NEXRAD Radar — 2h history',
+            label: 'NEXRAD Radar — 4h history',
             legend: {
                 label: 'dBZ',
                 gradient: 'linear-gradient(90deg, #004488 0%, #009900 18%, #00cc00 30%, #ffcc00 45%, #ff6600 58%, #ff0000 72%, #cc00cc 88%, #ffffff 100%)',
